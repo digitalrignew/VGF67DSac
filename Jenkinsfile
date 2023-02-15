@@ -1,20 +1,37 @@
-pipeline{
+@Library(['rig_modules'])_
+pipeline {
     agent any
-
-    tools {
-         maven 'maven'
-         jdk 'java'
-    }
-
-    stages{
-        stage('checkout'){
-            steps{
-                checkout([$class: 'GitSCM', branches: [[name: '*/master']], extensions: [], userRemoteConfigs: [[credentialsId: 'github access', url: 'https://github.com/sreenivas449/java-hello-world-with-maven.git']]])
+    stages {
+        stage('git checkout') {
+            steps {
+            sh "echo git checkout"
             }
         }
-        stage('build'){
+      	stage('maven build') {
+        	steps {
+        		sh 'mvn clean package'
+        	}
+        }
+      	stage('Update dependency to rig') {
+            steps {
+                script {
+        		    dependencyModule.push("VGF67DSac")
+                }
+        	}
+        }
+        stage('sonar analysis') {
+            environment {
+                scannerHome = tool 'SonarQube'
+            }
             steps{
-               bat 'mvn package'
+                withSonarQubeEnv('rigSonarQubeServer') {
+                    sh '${scannerHome}/bin/sonar-scanner -Dsonar.projectKey=VGF67DSac -Dsonar.exclusions=src/test/java/**'
+                }
+            }
+        }
+        stage('maven publish to nexus') {
+            steps{
+                nexusArtifactUploader artifacts: [[artifactId: 'TomcatMavenApp', classifier: '', file: 'target/TomcatMavenApp-2.0.war', type: 'war']], credentialsId: 'my_nexus', groupId: 'com.sarav', nexusUrl: 'nexus-app.wiprodigitalrig.com/', nexusVersion: 'nexus3', protocol: 'https', repository: 'TomcatMavenApp/', version: '2.0'
             }
         }
     }
